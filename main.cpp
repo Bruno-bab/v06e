@@ -1,5 +1,6 @@
 #include "main.h"
 #include "rc.h"
+#include <bitset>
 
 int main_dialog::idd() const {
 	return IDD_DIALOG;
@@ -15,15 +16,16 @@ bool main_dialog::on_ok() {
 
 main_window::main_window() {
 	ZeroMemory(&lf, sizeof(lf));
+	_tcscpy_s(lf.lfFaceName, _T("Arial"));
 	HDC hdc = ::GetDC(0);
-	lf.lfHeight = -15 * ::GetDeviceCaps(hdc, LOGPIXELSY) / 50;
+	lf.lfHeight = -15 * ::GetDeviceCaps(hdc, LOGPIXELSY) / 72;
 	cr = RGB(0, 0, 0);
 	::ReleaseDC(0, hdc);
 }
 
 bool get_font(HWND hw, LOGFONT& logf, COLORREF& cr) {
 	LOGFONT lf{ logf };
-	CHOOSEFONT cf{ sizeof cf, hw, 0, &lf, 0, CF_EFFECTS, cr };
+	CHOOSEFONT cf{ sizeof cf, hw, 0, &lf, 0, CF_EFFECTS | CF_INITTOLOGFONTSTRUCT, cr };
 	if (ChooseFont(&cf)) {
 		logf = lf;
 		cr = cf.rgbColors;
@@ -38,39 +40,22 @@ void main_window::on_paint(HDC hdc) {
 		return;
 	RECT r;
 	GetClientRect(*this, &r);
-	int x = r.right / 9;
+	int x = r.right / 17;
 	int y = r.bottom / text.size();
 	HFONT hf = (HFONT)SelectObject(hdc, CreateFontIndirect(&lf));
 	SetTextColor(hdc, cr);
 
 	for (int i = 0; i < text.size(); i++)
 	{
-		for (int j = 0; j < 8; j++)
+		std::bitset<16> b(text[i]);
+		for (int j = 0; j < 16; j++)
 		{
-			int unicode = text[i];
-			std::string bin = "";
-			while (unicode > 0)
-			{
-				if (unicode % 2)
-					bin.push_back('1');
-				else
-					bin.push_back('0');
-				unicode /= 2;
-			}
-			for (int k = 0; k < bin.size(); k++)
-			{
-				if (bin.size() < 8)
-					bin.push_back('0');
-			}
-			reverse(bin.begin(), bin.end());
-			r = { j * x, i * y, (j + 1) * x, (i + 1) * y };
-			if (bin[j] == '0')
-			{
-				FillRect(hdc, &r, (HBRUSH)GetStockObject(BLACK_BRUSH));
-			}
+			RECT bit_r = {j * x, i * y, (j + 1) * x, (i + 1) * y };
+			if (!b.test(15 - j))
+				FillRect(hdc, &bit_r, (HBRUSH)GetStockObject(BLACK_BRUSH));
 		}
-		r = { 8 * x, i * y, 9 * x, (i + 1) * y };
-		DrawText(hdc, &text[i], 1, &r, DT_CENTER);
+		r = { 16 * x, i * y, 17 * x, (i + 1) * y };
+		DrawText(hdc, &text[i], 1, &r, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
 	}
 	DeleteObject((HFONT)SelectObject(hdc, hf));
 }
